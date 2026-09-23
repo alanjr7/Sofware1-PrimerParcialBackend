@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 
 export const createUserSala = async (userId, salas_id) => {
     const existingEntry = await pool.query(
-        `SELECT * FROM "Usersala" WHERE userId = $1 AND salas_id = $2.`,
+        `SELECT * FROM "Usersala" WHERE userId = $1 AND salas_id = $2`,
         [userId, salas_id]
     );
     if (existingEntry.rows.length > 0) {
