@@ -29,12 +29,14 @@ El formato del JSON debe ser exactamente:
             "id": "unique_id",
             "type": "class",
             "name": "ClassName",
+            "stereotype": "association_table|association_class|interface|abstract|entity|controller|",
             "attributes": [
                 {
                     "name": "attributeName",
                     "type": "dataType",
                     "visibility": "public|private|protected",
-                    "isPrimaryKey": false
+                    "isPrimaryKey": false,
+                    "isForeignKey": false
                 }
             ],
             "methods": [
@@ -59,7 +61,7 @@ El formato del JSON debe ser exactamente:
     "relationships": [
         {
             "id": "rel_unique_id",
-            "type": "inheritance|composition|aggregation|association",
+            "type": "inheritance|composition|aggregation|association|many-to-many",
             "sourceId": "source_class_id",
             "targetId": "target_class_id",
             "cardinality": "1:1|1:*|*:1|*:*"
@@ -72,9 +74,10 @@ Reglas:
 2. Las posiciones deben distribuirse de manera lógica (separación mínima de 200px)
 3. Los tipos de datos comunes: string, int, boolean, Date, etc.
 4. Visibilidades: public (+), private (-), protected (#)
-5. Tipos de relaciones: inheritance, composition, aggregation, association
+5. Tipos de relaciones: inheritance, composition, aggregation, association, many-to-many
 6. Las cardinalidades estándar: "1:1", "1:*", "*:1", "*:*"
-7. NUNCA incluyas texto explicativo, solo el JSON válido`;
+7. Si una clase actúa como tabla/clase intermedia (relación M:N), usa stereotype: "association_table" y define sus FKs como PKs compuestas
+8. NUNCA incluyas texto explicativo, solo el JSON válido`;
 
 class AIController {
     // Generate UML diagram from text, voice, or image

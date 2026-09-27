@@ -37,7 +37,7 @@ Tu tarea es responder a la solicitud del usuario modificando o ampliando el diag
 
 CONTEXTO DEL DIAGRAMA ACTUAL EN LA PIZARRA:
 - Elementos existentes (${existingElements.length}):
-${JSON.stringify(existingElements.map(e => ({ id: e.id, name: e.name, attributes: (e.attributes || []).map(a => a.name), methods: (e.methods || []).map(m => m.name) })), null, 2)}
+${JSON.stringify(existingElements.map(e => ({ id: e.id, name: e.name, stereotype: e.stereotype || '', attributes: (e.attributes || []).map(a => a.name), methods: (e.methods || []).map(m => m.name) })), null, 2)}
 - Relaciones existentes (${existingRelationships.length}):
 ${JSON.stringify(existingRelationships.map(r => ({ id: r.id, type: r.type, source: r.sourceId || r.source, target: r.targetId || r.target, cardinality: r.cardinality })), null, 2)}
 
@@ -47,8 +47,11 @@ INSTRUCCIONES CLAVE:
    - Si las clases existen, REUTILIZA exactamente sus IDs y nombres.
    - Si alguna de las clases mencionadas no existe en el diagrama actual, CRÉALA con atributos y métodos coherentes y luego crea la relación.
 3. Si el usuario pide crear nuevas clases o módulos, agrégalas distribuyéndolas en posiciones con offset adecuado (evita superponer clases).
-4. Si el usuario pide modificar o añadir atributos/métodos a una clase existente, preserva su ID original y añade lo solicitado.
-5. Devuelve la propiedad "isReset": true ÚNICAMENTE si el usuario pide borrar/reiniciar el diagrama completo. Por defecto "isReset" debe ser false.
+4. Si el usuario pide modificar o añadir atributos/métodos/estereotipo a una clase existente, preserva su ID original y añade lo solicitado.
+5. Si el usuario indica que una relación es MUCHOS A MUCHOS con CLASE INTERMEDIA / TABLA DE ASOCIACIÓN (ej: DetalleVenta entre Venta y Producto):
+   - Asigna a la clase intermedia "stereotype": "association_table" y define sus FKs correspondientes.
+   - En "relationships", genera una relación de tipo "many-to-many-direct" conectando directamente las dos entidades principales (ej: sourceId: "Venta", targetId: "Producto"), asignando "associationTable": "DetalleVenta" (ID o nombre de la clase intermedia) y "cardinality": "*:*".
+6. Devuelve la propiedad "isReset": true ÚNICAMENTE si el usuario pide borrar/reiniciar el diagrama completo. Por defecto "isReset" debe ser false.
 
 RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO (sin markdown, sin bloques \`\`\`json, sin texto extra):
 {
@@ -59,9 +62,10 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO (sin markdown, sin bloques \`\`\
             "id": "id_existente_o_nuevo",
             "type": "class",
             "name": "NombreClase",
+            "stereotype": "association_table|association_class|interface|abstract|entity|controller|",
             "attributes": [
-                { "name": "id", "type": "int", "visibility": "private", "isPrimaryKey": true },
-                { "name": "campo", "type": "string", "visibility": "private", "isPrimaryKey": false }
+                { "name": "id", "type": "int", "visibility": "private", "isPrimaryKey": true, "isForeignKey": false },
+                { "name": "campo", "type": "string", "visibility": "private", "isPrimaryKey": false, "isForeignKey": false }
             ],
             "methods": [
                 { "name": "ejecutar", "returnType": "void", "parameters": [], "visibility": "public" }
@@ -72,10 +76,11 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO (sin markdown, sin bloques \`\`\
     "relationships": [
         {
             "id": "rel_id",
-            "type": "association|inheritance|composition|aggregation|dependency",
+            "type": "association|inheritance|composition|aggregation|dependency|many-to-many-direct",
             "sourceId": "id_or_name_origen",
             "targetId": "id_or_name_destino",
-            "cardinality": "1:*",
+            "associationTable": "id_or_name_clase_intermedia",
+            "cardinality": "1:*|*:*",
             "label": ""
         }
     ]
