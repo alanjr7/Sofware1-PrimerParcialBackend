@@ -303,7 +303,7 @@ class AIController {
                         content: [
                             {
                                 type: "text",
-                                text: "Analiza esta imagen y describe el sistema, clases, objetos o conceptos que ves. Describe todo lo que puedas observar para crear un diagrama UML de clases."
+                                text: "Observa minuciosamente esta imagen y describe detalladamente cómo crear este diagrama de clases UML tal como si se lo estuvieras dictando por voz al diseñador:\n1. Enumera cada una de las clases con sus atributos y métodos visibles.\n2. Explica y detalla todas y cada una de las relaciones y conexiones entre clases (indicando clase origen, clase destino, tipo de relación como herencia, composición, agregación, dependencia, asociación o muchos a muchos con tabla intermedia, y sus cardinalidades 1:*, *:*, etc.).\nCuando te envíen una imagen genera todo el diagrama incluyendo sus relaciones completas."
                             },
                             {
                                 type: "image_url",
