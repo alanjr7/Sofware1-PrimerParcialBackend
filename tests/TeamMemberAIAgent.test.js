@@ -228,3 +228,51 @@ test('TeamMemberAIAgent - 4. Modo mentor conceptual (ej. explicando atributos de
     assert.equal(userContext.queries.length, 1);
     assert.equal(userContext.lastInquiry, 'qué es un atributo derivado en UML?');
 });
+
+test('TeamMemberAIAgent - 5. Preservacion estricta de clases y conexiones existentes al agregar nuevos elementos', () => {
+    const manager = new RoomContextManager();
+    const agent = new TeamMemberAIAgent(manager, null);
+
+    const initialDiagram = {
+        elements: [
+            { id: 'el_cliente', type: 'class', name: 'Cliente', x: 50, y: 50, attributes: ['- id: int'], methods: [] },
+            { id: 'el_venta', type: 'class', name: 'Venta', x: 250, y: 50, attributes: ['- id: int'], methods: [] },
+            { id: 'el_prod', type: 'class', name: 'Producto', x: 450, y: 50, attributes: ['- id: int'], methods: [] }
+        ],
+        connections: [
+            { id: 'conn_1', source: 'el_cliente', target: 'el_venta', type: 'association', label: 'realiza' },
+            { id: 'conn_2', source: 'el_venta', target: 'el_prod', type: 'association', label: 'incluye' }
+        ]
+    };
+
+    // Propuesta de la IA donde agrega 'Dueno' y lo relaciona con 'Cliente' usando nombre de clase
+    const proposed = {
+        elements: [
+            { name: 'Dueno', type: 'class', attributes: ['- idDueno: int'], methods: ['+ registrar(): void'] }
+        ],
+        connections: [
+            { source: 'Dueno', target: 'Cliente', type: 'association', label: 'posee' }
+        ]
+    };
+
+    const reconciled = agent.normalizeAndPreserveDiagram(initialDiagram, proposed);
+
+    // 1. Debe contener las 3 clases originales + la nueva clase Dueno (total 4)
+    assert.equal(reconciled.elements.length, 4);
+    assert.ok(reconciled.elements.some(e => e.name === 'Cliente' && e.id === 'el_cliente'));
+    assert.ok(reconciled.elements.some(e => e.name === 'Venta' && e.id === 'el_venta'));
+    assert.ok(reconciled.elements.some(e => e.name === 'Producto' && e.id === 'el_prod'));
+    assert.ok(reconciled.elements.some(e => e.name === 'Dueno'));
+
+    // 2. Debe contener las 2 conexiones originales + la nueva conexion (total 3)
+    assert.equal(reconciled.connections.length, 3);
+    assert.ok(reconciled.connections.some(c => c.id === 'conn_1' && c.source === 'el_cliente' && c.target === 'el_venta'));
+    assert.ok(reconciled.connections.some(c => c.id === 'conn_2' && c.source === 'el_venta' && c.target === 'el_prod'));
+
+    // 3. La nueva conexion debe haber resuelto 'Cliente' -> 'el_cliente' y 'Dueno' -> id del Dueno
+    const duenoid = reconciled.elements.find(e => e.name === 'Dueno').id;
+    const nuevaConn = reconciled.connections.find(c => c.label === 'posee');
+    assert.ok(nuevaConn);
+    assert.equal(nuevaConn.source, duenoid);
+    assert.equal(nuevaConn.target, 'el_cliente');
+});

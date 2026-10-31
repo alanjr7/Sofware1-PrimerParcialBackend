@@ -170,6 +170,156 @@ export class TeamMemberAIAgent extends BaseAgent {
      * @param {string} texto 
      * @returns {Object}
      */
+    /**
+     * Normaliza y preserva los elementos y conexiones del diagrama actual
+     * asegurando que ninguna relación existente se pierda y que las nuevas
+     * relaciones resuelvan correctamente los identificadores de clases.
+     * @param {Object} currentDiagram
+     * @param {Object} proposedDiagram
+     * @returns {Object} Diagrama normalizado { elements: Array, connections: Array }
+     */
+    normalizeAndPreserveDiagram(currentDiagram, proposedDiagram) {
+        currentDiagram = currentDiagram || {};
+        proposedDiagram = proposedDiagram || {};
+
+        // 1. Extraer elementos existentes
+        const currentElements = Array.isArray(currentDiagram.elements)
+            ? [...currentDiagram.elements]
+            : (currentDiagram.elements && typeof currentDiagram.elements === 'object')
+                ? Object.values(currentDiagram.elements)
+                : [];
+
+        // 2. Extraer elementos propuestos
+        const proposedElements = Array.isArray(proposedDiagram.elements)
+            ? [...proposedDiagram.elements]
+            : (proposedDiagram.elements && typeof proposedDiagram.elements === 'object')
+                ? Object.values(proposedDiagram.elements)
+                : [];
+
+        // Mapa de elementos por id y por nombre en minúsculas
+        const elementsById = new Map();
+        const elementsByName = new Map();
+
+        currentElements.forEach(el => {
+            if (el && (el.id || el.name)) {
+                const id = el.id || `element_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+                const item = { ...el, id };
+                elementsById.set(id, item);
+                if (item.name) elementsByName.set(String(item.name).trim().toLowerCase(), id);
+            }
+        });
+
+        // Fusionar elementos propuestos
+        proposedElements.forEach(propEl => {
+            if (!propEl) return;
+            const propName = propEl.name ? String(propEl.name).trim() : '';
+            const existingIdByName = propName ? elementsByName.get(propName.toLowerCase()) : null;
+            const existingId = propEl.id && elementsById.has(propEl.id) ? propEl.id : existingIdByName;
+
+            if (existingId) {
+                const prev = elementsById.get(existingId);
+                const updated = {
+                    ...prev,
+                    ...propEl,
+                    id: existingId,
+                    x: propEl.x !== undefined ? propEl.x : prev.x,
+                    y: propEl.y !== undefined ? propEl.y : prev.y
+                };
+                elementsById.set(existingId, updated);
+            } else {
+                const newId = propEl.id || `element_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+                const newEl = {
+                    id: newId,
+                    type: propEl.type || 'class',
+                    name: propEl.name || 'NuevaClase',
+                    x: propEl.x !== undefined ? propEl.x : Math.floor(100 + Math.random() * 250),
+                    y: propEl.y !== undefined ? propEl.y : Math.floor(100 + Math.random() * 250),
+                    attributes: Array.isArray(propEl.attributes) ? propEl.attributes : [],
+                    methods: Array.isArray(propEl.methods) ? propEl.methods : []
+                };
+                elementsById.set(newId, newEl);
+                if (newEl.name) elementsByName.set(String(newEl.name).trim().toLowerCase(), newId);
+            }
+        });
+
+        const finalElements = Array.from(elementsById.values());
+
+        // Función para resolver identificador de clase (nombre o id) a su element_id
+        const resolveElementId = (val) => {
+            if (!val) return null;
+            const strVal = String(val).trim();
+            if (elementsById.has(strVal)) return strVal;
+            const lower = strVal.toLowerCase();
+            if (elementsByName.has(lower)) return elementsByName.get(lower);
+            return strVal;
+        };
+
+        // 3. Extraer conexiones existentes (acepta connections o relationships)
+        const currentConns = Array.isArray(currentDiagram.connections)
+            ? currentDiagram.connections
+            : Array.isArray(currentDiagram.relationships)
+                ? currentDiagram.relationships
+                : [];
+
+        // 4. Extraer conexiones propuestas
+        const proposedConns = Array.isArray(proposedDiagram.connections)
+            ? proposedDiagram.connections
+            : Array.isArray(proposedDiagram.relationships)
+                ? proposedDiagram.relationships
+                : [];
+
+        const connectionsMap = new Map();
+
+        // Preservar todas las conexiones existentes
+        currentConns.forEach((conn, index) => {
+            if (!conn) return;
+            const sourceId = resolveElementId(conn.source);
+            const targetId = resolveElementId(conn.target);
+            if (!sourceId || !targetId) return;
+
+            const connId = conn.id || `conn_${Date.now()}_${index}`;
+            const key = `${sourceId}_${targetId}_${conn.type || 'association'}`;
+            connectionsMap.set(key, {
+                id: connId,
+                source: sourceId,
+                target: targetId,
+                type: conn.type || 'association',
+                sourceMultiplicity: conn.sourceMultiplicity || '',
+                targetMultiplicity: conn.targetMultiplicity || '',
+                label: conn.label || ''
+            });
+        });
+
+        // Añadir y fusionar conexiones propuestas
+        proposedConns.forEach((conn, index) => {
+            if (!conn) return;
+            const sourceId = resolveElementId(conn.source);
+            const targetId = resolveElementId(conn.target);
+            if (!sourceId || !targetId) return;
+
+            const key = `${sourceId}_${targetId}_${conn.type || 'association'}`;
+            const existing = connectionsMap.get(key);
+
+            const connId = (existing && existing.id) || conn.id || `conn_${Date.now()}_${index}`;
+            connectionsMap.set(key, {
+                id: connId,
+                source: sourceId,
+                target: targetId,
+                type: conn.type || (existing ? existing.type : 'association'),
+                sourceMultiplicity: conn.sourceMultiplicity || (existing ? existing.sourceMultiplicity : ''),
+                targetMultiplicity: conn.targetMultiplicity || (existing ? existing.targetMultiplicity : ''),
+                label: conn.label || (existing ? existing.label : '')
+            });
+        });
+
+        const finalConnections = Array.from(connectionsMap.values());
+
+        return {
+            elements: finalElements,
+            connections: finalConnections
+        };
+    }
+
     _generateLocalFallback(userName, texto) {
         const lower = texto.toLowerCase();
         if (lower.includes('derivado')) {
@@ -233,7 +383,7 @@ export class TeamMemberAIAgent extends BaseAgent {
         if (currentDiagram) {
             this.roomContextManager.updateDiagram(salaId, currentDiagram);
         }
-        const activeDiagram = currentDiagram || this.roomContextManager.getDiagram(salaId) || { elements: [], relationships: [] };
+        const activeDiagram = currentDiagram || this.roomContextManager.getDiagram(salaId) || { elements: [], connections: [] };
         const recentMessages = this.roomContextManager.getRecentMessages(salaId, 15);
         const userContext = this.roomContextManager.getUserContext(salaId, userId);
 
