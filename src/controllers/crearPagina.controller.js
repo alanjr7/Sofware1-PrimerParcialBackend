@@ -5,6 +5,7 @@ import archiver from 'archiver';
 import { response } from '../middlewares/catchedAsync.js';
 import { getSalaById, updateSala } from '../models/sala.model.js';
 import { rm } from 'fs/promises';
+import laravelGeneratorService from '../services/laravelGenerator.service.js';
 
 const rutaBase = 'C:/Users/Public/Documents/proyectos';
 
@@ -58,6 +59,87 @@ class CrearPaginaController {
     } catch (error) {
       console.error('❌ Error al enviar o limpiar:', error.message);
       throw error;
+    }
+  };
+
+  exportarLaravelDesdeSala = async (req, res) => {
+    const { id } = req.params;
+    try {
+      const [sala] = await getSalaById(id);
+      if (!sala) {
+        return response(res, 404, { error: 'Sala no encontrada' });
+      }
+      if (!sala.xml || sala.xml.trim() === '') {
+        return response(res, 400, { error: 'La sala no tiene contenido XML para exportar' });
+      }
+      let salaData;
+      try {
+        salaData = JSON.parse(sala.xml);
+      } catch (parseError) {
+        console.error(`❌ Error parseando XML de sala:`, parseError);
+        return response(res, 400, { error: 'El XML de la sala no es válido' });
+      }
+      let elements = [];
+      let connections = [];
+      if (salaData.elements) {
+        if (Array.isArray(salaData.elements)) {
+          elements = salaData.elements;
+        } else if (typeof salaData.elements === 'object') {
+          elements = Object.values(salaData.elements);
+        }
+      }
+      if (salaData.connections) {
+        if (Array.isArray(salaData.connections)) {
+          connections = salaData.connections;
+        } else if (typeof salaData.connections === 'object') {
+          connections = Object.values(salaData.connections);
+        }
+      }
+      if (elements.length === 0) {
+        return response(res, 400, { error: 'No hay elementos UML en la sala para generar Laravel' });
+      }
+      const classElements = elements.filter(el => el.type === 'class');
+      if (classElements.length === 0) {
+        return response(res, 400, { error: 'No hay clases UML en la sala para generar modelos Laravel' });
+      }
+      console.log(`🗃️ [LARAVEL] Exportando desde sala ID: ${id} (${sala.title}) - ${classElements.length} clases`);
+      const processedData = this.procesarElementosConRelaciones(classElements, connections);
+      const projectName = `laravel-backend-${sala.title.toLowerCase().replace(/\s+/g, '-')}`;
+      await laravelGeneratorService.crearProyectoLaravelCompleto(projectName, processedData, rutaBase);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await this.comprimirProyecto(projectName);
+      await this.enviarZip(res, projectName);
+    } catch (error) {
+      console.error('❌ Error exportando Laravel desde sala:', error.message);
+      return response(res, 500, {
+        error: 'Error exportando Laravel desde sala',
+        detalles: error.message
+      });
+    }
+  };
+
+  exportarLaravelConRelaciones = async (req, res) => {
+    const { elements, connections } = req.body;
+    if (!elements || elements.length === 0) {
+      return response(res, 400, { error: 'No hay elementos para generar el proyecto Laravel' });
+    }
+    const classElements = elements.filter(el => el.type === 'class');
+    if (classElements.length === 0) {
+      return response(res, 400, { error: 'No hay clases UML para generar modelos Laravel' });
+    }
+    const processedData = this.procesarElementosConRelaciones(classElements, connections || []);
+    const projectName = 'laravel-backend-project';
+    try {
+      await laravelGeneratorService.crearProyectoLaravelCompleto(projectName, processedData, rutaBase);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await this.comprimirProyecto(projectName);
+      await this.enviarZip(res, projectName);
+    } catch (error) {
+      console.error('❌ Error generando proyecto Laravel:', error.message);
+      return response(res, 500, {
+        error: 'Error generando proyecto Laravel',
+        detalles: error.message
+      });
     }
   };
 

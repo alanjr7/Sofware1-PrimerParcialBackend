@@ -7,6 +7,11 @@ router.post('/exportarSpringBoot/:id', CrearPaginaController.exportarSpringBootD
 
 router.post('/exportarSpringBoot', CrearPaginaController.exportarSpringBootConRelaciones);
 
+router.post('/exportarLaravel/:id', CrearPaginaController.exportarLaravelDesdeSala);
+
+router.post('/exportarLaravel', CrearPaginaController.exportarLaravelConRelaciones);
+
 router.post('/:id', CrearPaginaController.exportar);
 
 export default router;
+

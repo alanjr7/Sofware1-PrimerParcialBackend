@@ -216,7 +216,7 @@ class AIController {
     static async generateUMLFromText(userInput) {
         try {
             const completion = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
+                model: "gpt-4o-mini",
                 messages: [
                     {
                         role: "system",
@@ -227,8 +227,9 @@ class AIController {
                         content: `Genera un diagrama UML de clases basado en: ${userInput}`
                     }
                 ],
-                temperature: 0.7,
-                max_tokens: 2000
+                temperature: 0.2,
+                response_format: { type: "json_object" },
+                max_tokens: 8000
             });
 
             const response = completion.choices[0].message.content.trim();

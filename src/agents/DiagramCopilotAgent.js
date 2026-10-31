@@ -95,8 +95,9 @@ Diagrama actual tiene ${existingElements.length} elementos. Aplica la acción re
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            temperature: 0.3,
-            max_tokens: 2500
+            temperature: 0.2,
+            response_format: { type: "json_object" },
+            max_tokens: 8000
         });
 
         const rawContent = completion.choices[0].message.content.trim();
@@ -104,10 +105,14 @@ Diagrama actual tiene ${existingElements.length} elementos. Aplica la acción re
 
         try {
             parsedResult = JSON.parse(rawContent);
-        } catch {
+        } catch (jsonErr) {
             const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                parsedResult = JSON.parse(jsonMatch[0]);
+                try {
+                    parsedResult = JSON.parse(jsonMatch[0]);
+                } catch {
+                    throw new Error(`Error parseando respuesta JSON de la IA: ${jsonErr.message}`);
+                }
             } else {
                 throw new Error("La respuesta del Agente no contiene un formato JSON válido.");
             }
