@@ -374,6 +374,21 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTE ESQUEMA:
             proposal: null
         };
     }
+
+    static get defaultInstance() {
+        if (!TeamMemberAIAgent._defaultInstance) {
+            TeamMemberAIAgent._defaultInstance = new TeamMemberAIAgent();
+        }
+        return TeamMemberAIAgent._defaultInstance;
+    }
+
+    static shouldRespond(texto, hasPendingProposal = false) {
+        return TeamMemberAIAgent.defaultInstance.shouldRespond(texto, hasPendingProposal);
+    }
+
+    static async processMessage(params) {
+        return TeamMemberAIAgent.defaultInstance.processMessage(params);
+    }
 }
 
 export default TeamMemberAIAgent;

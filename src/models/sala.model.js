@@ -34,6 +34,15 @@ export const getSala = async (userId) => {
 };
 
 export const updateSala = async (id, title, xml, description, io = null) => {
+    // Soporte para paso de opciones por objeto: updateSala(id, { xml, title, description, io })
+    if (title && typeof title === 'object' && xml === undefined && description === undefined) {
+        const opts = title;
+        title = opts.title;
+        xml = opts.xml;
+        description = opts.description;
+        io = opts.io || io;
+    }
+
     console.log(`🔧 UPDATE: Iniciando actualización para sala ID: ${id}`);
     console.log(`🔧 UPDATE: ¿Tiene instancia IO para broadcast?: ${!!io}`);
     
