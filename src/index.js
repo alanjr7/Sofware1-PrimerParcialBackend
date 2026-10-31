@@ -129,6 +129,12 @@ export function setupSocketHandlers(io, dependencies = {}) {
                 }
 
                 const salaIdNormalizado = parseInt(salaId, 10);
+                const roomName = `sala_${salaIdNormalizado}`;
+                if (!socket.rooms || !socket.rooms.has(roomName)) {
+                    socket.join(roomName);
+                    socket.salaId = salaIdNormalizado;
+                    if (usuario) socket.usuario = usuario;
+                }
                 if (!salasActivas.has(salaIdNormalizado)) {
                     salasActivas.set(salaIdNormalizado, {
                         usuarios: new Map(),
@@ -164,7 +170,8 @@ export function setupSocketHandlers(io, dependencies = {}) {
                 console.log(`💬 [Sala ${salaIdNormalizado}] Mensaje de ${nuevoMensaje.usuario?.name}: "${nuevoMensaje.texto}"`);
 
                 // Transmitir inmediatamente el mensaje humano a la sala
-                io.to(`sala_${salaIdNormalizado}`).emit('mensajeChatRecibido', nuevoMensaje);
+                io.to(roomName).emit('mensajeChatRecibido', nuevoMensaje);
+                socket.emit('mensajeChatRecibido', nuevoMensaje);
 
                 // 1. Registrar mensaje humano en RoomContextManager
                 roomContextManager.addMessage(salaIdNormalizado, nuevoMensaje);
@@ -211,7 +218,8 @@ export function setupSocketHandlers(io, dependencies = {}) {
                             }
                             roomContextManager.addMessage(salaIdNormalizado, aiMsg);
 
-                            io.to(`sala_${salaIdNormalizado}`).emit('mensajeChatRecibido', aiMsg);
+                            io.to(roomName).emit('mensajeChatRecibido', aiMsg);
+                            socket.emit('mensajeChatRecibido', aiMsg);
                         }
 
                         if (result && result.hasDiagramAction && result.updatedDiagram) {
@@ -417,7 +425,7 @@ export function setupSocketHandlers(io, dependencies = {}) {
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
     cors: {
-        origin: 'http://localhost:5000',
+        origin: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
     }
