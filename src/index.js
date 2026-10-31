@@ -52,8 +52,9 @@ export function setupSocketHandlers(io, dependencies = {}) {
                     });
                 }
                 const sala = salasActivas.get(salaIdNormalizado);
-                if (!sala.mensajes) {
-                    sala.mensajes = [];
+                if (!sala.mensajes || sala.mensajes.length === 0) {
+                    const mensajesPrevios = roomContextManager.getRecentMessages(salaIdNormalizado, 50) || [];
+                    sala.mensajes = [...mensajesPrevios];
                 }
                 sala.usuarios.set(socket.id, { ...usuario, socketId: socket.id });
                 const clientesSocketIO = io.sockets.adapter.rooms.get(`sala_${salaIdNormalizado}`);
@@ -72,7 +73,9 @@ export function setupSocketHandlers(io, dependencies = {}) {
 
                 // Enviar historial de chat acumulado de la sesión al usuario que se conecta
                 socket.emit('historialChat', {
-                    mensajes: sala.mensajes || []
+                    mensajes: (sala.mensajes && sala.mensajes.length > 0)
+                        ? sala.mensajes
+                        : (roomContextManager.getRecentMessages(salaIdNormalizado, 50) || [])
                 });
                 
                 try {
@@ -410,8 +413,9 @@ export function setupSocketHandlers(io, dependencies = {}) {
                         io.to(`sala_${socket.salaId}`).emit('usuariosConectados', { usuarios: usuariosRestantes });
 
                         if (sala.usuarios.size === 0) {
-                            console.log(`🗑️ Limpiando sala vacía ${socket.salaId}`);
-                            salasActivas.delete(socket.salaId);
+                        if (sala.usuarios.size === 0) {
+                            console.log(`ℹ️ Sala ${socket.salaId}: usuarios temporalmente desconectados. Preservando mensajes e historial de sala.`);
+                        }
                         }
                     }
                 }
