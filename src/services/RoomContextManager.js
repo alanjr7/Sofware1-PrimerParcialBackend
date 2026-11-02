@@ -161,7 +161,8 @@ export class RoomContextManager {
             timestamp: Date.now(),
             expiresAt: Date.now() + ttlMs
         };
-        room.pendingProposals.set(userId, entry);
+        const userKey = userId !== undefined && userId !== null ? String(userId) : 'unknown';
+        room.pendingProposals.set(userKey, entry);
         return entry;
     }
 
@@ -174,7 +175,19 @@ export class RoomContextManager {
      */
     getPendingProposal(salaId, userId) {
         const room = this.getRoom(salaId);
-        const entry = room.pendingProposals.get(userId);
+        const userKey = userId !== undefined && userId !== null ? String(userId) : 'unknown';
+        let entry = room.pendingProposals.get(userKey);
+
+        if (!entry && room.pendingProposals.size > 0) {
+            for (const [key, candidate] of room.pendingProposals.entries()) {
+                if (Date.now() <= candidate.expiresAt) {
+                    entry = candidate;
+                    break;
+                } else {
+                    room.pendingProposals.delete(key);
+                }
+            }
+        }
         if (!entry) {
             return null;
         }
@@ -195,7 +208,13 @@ export class RoomContextManager {
      */
     clearPendingProposal(salaId, userId) {
         const room = this.getRoom(salaId);
-        return room.pendingProposals.delete(userId);
+        const userKey = userId !== undefined && userId !== null ? String(userId) : 'unknown';
+        let deleted = room.pendingProposals.delete(userKey);
+        if (!deleted && room.pendingProposals.size === 1) {
+            room.pendingProposals.clear();
+            deleted = true;
+        }
+        return deleted;
     }
 }
 

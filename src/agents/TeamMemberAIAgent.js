@@ -67,7 +67,27 @@ export class TeamMemberAIAgent extends BaseAgent {
             /\bclaro\b/,
             /\bde acuerdo\b/,
             /\bafirmativo\b/,
-            /\bconfirmo\b/
+            /\bconfirmo\b/,
+            /\bapruebo\b/,
+            /\baprobado\b/,
+            /\baprueba\b/,
+            /\baprobar\b/,
+            /\bacepto\b/,
+            /\baceptado\b/,
+            /\baceptar\b/,
+            /\bmodifica\b/,
+            /\bmodificalo\b/,
+            /\bmodifique\b/,
+            /\bactualiza\b/,
+            /\bactualizalo\b/,
+            /\bejecuta\b/,
+            /\bejecutalo\b/,
+            /\blisto\b/,
+            /\bperfecto\b/,
+            /\bexcelente\b/,
+            /\bcorrecto\b/,
+            /\bva\b/,
+            /\bde una\b/
         ];
 
         return affirmativePatterns.some(pattern => pattern.test(clean));
@@ -183,18 +203,18 @@ export class TeamMemberAIAgent extends BaseAgent {
         proposedDiagram = proposedDiagram || {};
 
         // 1. Extraer elementos existentes
-        const currentElements = Array.isArray(currentDiagram.elements)
-            ? [...currentDiagram.elements]
-            : (currentDiagram.elements && typeof currentDiagram.elements === 'object')
-                ? Object.values(currentDiagram.elements)
-                : [];
+        const extractElements = (diag) => {
+            if (!diag) return [];
+            if (Array.isArray(diag.elements)) return [...diag.elements];
+            if (diag.elements && typeof diag.elements === 'object') return Object.values(diag.elements);
+            if (diag.data && Array.isArray(diag.data.elements)) return [...diag.data.elements];
+            if (diag.data?.elements && typeof diag.data.elements === 'object') return Object.values(diag.data.elements);
+            if (diag.diagram && Array.isArray(diag.diagram.elements)) return [...diag.diagram.elements];
+            return [];
+        };
 
-        // 2. Extraer elementos propuestos
-        const proposedElements = Array.isArray(proposedDiagram.elements)
-            ? [...proposedDiagram.elements]
-            : (proposedDiagram.elements && typeof proposedDiagram.elements === 'object')
-                ? Object.values(proposedDiagram.elements)
-                : [];
+        const currentElements = extractElements(currentDiagram);
+        const proposedElements = extractElements(proposedDiagram);
 
         // Mapa de elementos por id y por nombre en minúsculas
         const elementsById = new Map();
@@ -245,70 +265,98 @@ export class TeamMemberAIAgent extends BaseAgent {
         const finalElements = Array.from(elementsById.values());
 
         // Función para resolver identificador de clase (nombre o id) a su element_id
+        const cleanName = (val) => String(val || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
         const resolveElementId = (val) => {
             if (!val) return null;
             const strVal = String(val).trim();
             if (elementsById.has(strVal)) return strVal;
             const lower = strVal.toLowerCase();
             if (elementsByName.has(lower)) return elementsByName.get(lower);
+
+            const cleaned = cleanName(strVal).replace(/^(clase|class|tabla|entidad)\s+/i, '');
+            for (const [name, id] of elementsByName.entries()) {
+                if (cleanName(name) === cleaned) return id;
+            }
             return strVal;
         };
 
         // 3. Extraer conexiones existentes (acepta connections o relationships)
-        const currentConns = Array.isArray(currentDiagram.connections)
-            ? currentDiagram.connections
-            : Array.isArray(currentDiagram.relationships)
-                ? currentDiagram.relationships
-                : [];
+        const extractConnections = (diag) => {
+            if (!diag) return [];
+            if (Array.isArray(diag.connections)) return diag.connections;
+            if (Array.isArray(diag.relationships)) return diag.relationships;
+            if (diag.data && Array.isArray(diag.data.connections)) return diag.data.connections;
+            if (diag.data && Array.isArray(diag.data.relationships)) return diag.data.relationships;
+            if (diag.diagram && Array.isArray(diag.diagram.connections)) return diag.diagram.connections;
+            if (diag.diagram && Array.isArray(diag.diagram.relationships)) return diag.diagram.relationships;
+            return [];
+        };
 
-        // 4. Extraer conexiones propuestas
-        const proposedConns = Array.isArray(proposedDiagram.connections)
-            ? proposedDiagram.connections
-            : Array.isArray(proposedDiagram.relationships)
-                ? proposedDiagram.relationships
-                : [];
+        const currentConns = extractConnections(currentDiagram);
+        const proposedConns = extractConnections(proposedDiagram);
 
         const connectionsMap = new Map();
 
         // Preservar todas las conexiones existentes
         currentConns.forEach((conn, index) => {
             if (!conn) return;
-            const sourceId = resolveElementId(conn.source);
-            const targetId = resolveElementId(conn.target);
+            const rawSource = conn.source || conn.sourceId || conn.from || conn.origen;
+            const rawTarget = conn.target || conn.targetId || conn.to || conn.destino;
+            const sourceId = resolveElementId(rawSource);
+            const targetId = resolveElementId(rawTarget);
             if (!sourceId || !targetId) return;
 
             const connId = conn.id || `conn_${Date.now()}_${index}`;
             const key = `${sourceId}_${targetId}_${conn.type || 'association'}`;
+            const card = conn.cardinality || '';
+            const sMult = conn.sourceMultiplicity || (card.includes(':') ? card.split(':')[0] : '') || '';
+            const tMult = conn.targetMultiplicity || (card.includes(':') ? card.split(':')[1] : '') || '';
+
             connectionsMap.set(key, {
                 id: connId,
                 source: sourceId,
                 target: targetId,
+                sourceId: sourceId,
+                targetId: targetId,
                 type: conn.type || 'association',
-                sourceMultiplicity: conn.sourceMultiplicity || '',
-                targetMultiplicity: conn.targetMultiplicity || '',
-                label: conn.label || ''
+                sourceMultiplicity: sMult,
+                targetMultiplicity: tMult,
+                cardinality: card,
+                label: conn.label || '',
+                associationTable: conn.associationTable || null
             });
         });
 
         // Añadir y fusionar conexiones propuestas
         proposedConns.forEach((conn, index) => {
             if (!conn) return;
-            const sourceId = resolveElementId(conn.source);
-            const targetId = resolveElementId(conn.target);
+            const rawSource = conn.source || conn.sourceId || conn.from || conn.origen;
+            const rawTarget = conn.target || conn.targetId || conn.to || conn.destino;
+            const sourceId = resolveElementId(rawSource);
+            const targetId = resolveElementId(rawTarget);
             if (!sourceId || !targetId) return;
 
             const key = `${sourceId}_${targetId}_${conn.type || 'association'}`;
             const existing = connectionsMap.get(key);
 
             const connId = (existing && existing.id) || conn.id || `conn_${Date.now()}_${index}`;
+            const card = conn.cardinality || (existing ? existing.cardinality : '') || '';
+            const sMult = conn.sourceMultiplicity || (card.includes(':') ? card.split(':')[0] : (existing ? existing.sourceMultiplicity : '')) || '';
+            const tMult = conn.targetMultiplicity || (card.includes(':') ? card.split(':')[1] : (existing ? existing.targetMultiplicity : '')) || '';
+
             connectionsMap.set(key, {
                 id: connId,
                 source: sourceId,
                 target: targetId,
+                sourceId: sourceId,
+                targetId: targetId,
                 type: conn.type || (existing ? existing.type : 'association'),
-                sourceMultiplicity: conn.sourceMultiplicity || (existing ? existing.sourceMultiplicity : ''),
-                targetMultiplicity: conn.targetMultiplicity || (existing ? existing.targetMultiplicity : ''),
-                label: conn.label || (existing ? existing.label : '')
+                sourceMultiplicity: sMult,
+                targetMultiplicity: tMult,
+                cardinality: card,
+                label: conn.label || (existing ? existing.label : '') || '',
+                associationTable: conn.associationTable || (existing ? existing.associationTable : null)
             });
         });
 
@@ -316,7 +364,8 @@ export class TeamMemberAIAgent extends BaseAgent {
 
         return {
             elements: finalElements,
-            connections: finalConnections
+            connections: finalConnections,
+            relationships: finalConnections
         };
     }
 
@@ -399,6 +448,7 @@ ROL Y COMPORTAMIENTO:
    - Responde con "hasProposal": false y "proposal": null.
 3. Si el usuario te pide modificar, agregar, conectar o estructurar elementos en el diagrama:
    - Propon los cambios respetando las clases y relaciones existentes en la pizarra.
+   - Si el usuario pide relacionar, conectar o estructurar clases, incluye SIEMPRE la relación en el arreglo "connections" (y "relationships") especificando "source" (nombre o ID clase origen), "target" (nombre o ID clase destino), "type" ('association', 'inheritance', 'composition', 'aggregation', 'dependency'), "sourceMultiplicity" y "targetMultiplicity".
    - En tu respuesta textual explica la propuesta y formula SIEMPRE la pregunta de confirmación: "¿Quieres que lo aplique en la pizarra?".
    - En el campo "proposal" incluye el resumen de cambios y el objeto "updatedDiagram" completo.
    - Responde con "hasProposal": true.
@@ -417,7 +467,23 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTE ESQUEMA:
         "changes": "Descripción concisa de cambios",
         "updatedDiagram": {
             "elements": [...],
-            "relationships": [...]
+            "connections": [
+                {
+                    "source": "NombreClaseOrigen_o_id",
+                    "target": "NombreClaseDestino_o_id",
+                    "type": "association",
+                    "sourceMultiplicity": "1",
+                    "targetMultiplicity": "*",
+                    "label": ""
+                }
+            ],
+            "relationships": [
+                {
+                    "source": "NombreClaseOrigen_o_id",
+                    "target": "NombreClaseDestino_o_id",
+                    "type": "association"
+                }
+            ]
         }
     } | null
 }`;

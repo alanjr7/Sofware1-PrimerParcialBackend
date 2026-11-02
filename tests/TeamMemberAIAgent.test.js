@@ -45,6 +45,12 @@ test('TeamMemberAIAgent - 1. Filtro shouldRespond (descarte casual vs mención y
     assert.equal(agent.shouldRespond('aplica los cambios', true), true);
     assert.equal(agent.shouldRespond('ok', true), true);
     assert.equal(agent.shouldRespond('okay', true), true);
+    assert.equal(agent.shouldRespond('apruebo', true), true);
+    assert.equal(agent.shouldRespond('aprobado', true), true);
+    assert.equal(agent.shouldRespond('apruebo y modifica el diagrama', true), true);
+    assert.equal(agent.shouldRespond('modificalo', true), true);
+    assert.equal(agent.shouldRespond('actualizalo', true), true);
+    assert.equal(agent.shouldRespond('acepto los cambios', true), true);
 
     // Mensajes negativos o cancelaciones aun con propuesta pendiente deben descartarse
     assert.equal(agent.shouldRespond('no, espera', true), false);
@@ -275,4 +281,48 @@ test('TeamMemberAIAgent - 5. Preservacion estricta de clases y conexiones existe
     assert.ok(nuevaConn);
     assert.equal(nuevaConn.source, duenoid);
     assert.equal(nuevaConn.target, 'el_cliente');
+});
+
+test('TeamMemberAIAgent - 6. Confirmación con "apruebo y modifica el diagrama" y resolución de relaciones', async () => {
+    const manager = new RoomContextManager();
+    const agent = new TeamMemberAIAgent(manager, null);
+    const salaId = 'sala-relaciones';
+    const usuario = { id: 'u-500', name: 'Laura' };
+
+    const initialDiagram = {
+        elements: [{ id: 'el_cliente', name: 'Cliente' }],
+        connections: []
+    };
+
+    const proposed = {
+        elements: [
+            { id: 'el_cliente', name: 'Cliente' },
+            { id: 'el_factura', name: 'Factura' }
+        ],
+        relationships: [
+            { id: 'rel_1', sourceId: 'el_cliente', targetId: 'el_factura', type: 'association' }
+        ]
+    };
+
+    manager.initRoom(salaId, initialDiagram);
+    manager.setPendingProposal(salaId, usuario.id, {
+        changes: 'Agregar clase Factura y asociar con Cliente',
+        updatedDiagram: proposed
+    });
+
+    const result = await agent.processMessage({
+        salaId,
+        usuario,
+        texto: 'apruebo y modifica el diagrama',
+        currentDiagram: initialDiagram
+    });
+
+    assert.equal(result.shouldReply, true);
+    assert.equal(result.hasDiagramAction, true);
+    assert.ok(result.textResponse.includes('Laura'));
+    assert.ok(result.updatedDiagram);
+    assert.equal(result.updatedDiagram.relationships.length, 1);
+    const rel = result.updatedDiagram.relationships[0];
+    assert.equal(rel.sourceId || rel.source, 'el_cliente');
+    assert.equal(rel.targetId || rel.target, 'el_factura');
 });
