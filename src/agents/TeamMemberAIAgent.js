@@ -152,8 +152,8 @@ export class TeamMemberAIAgent extends BaseAgent {
         ];
 
         return questionPatterns.some(p => p.test(clean)) ||
-               actionPatterns.some(p => p.test(clean)) ||
-               umlKeywords.some(p => p.test(clean));
+            actionPatterns.some(p => p.test(clean)) ||
+            umlKeywords.some(p => p.test(clean));
     }
 
     /**
@@ -529,7 +529,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTE ESQUEMA:
                     if (jsonMatch) {
                         try {
                             parsed = JSON.parse(jsonMatch[0]);
-                        } catch {}
+                        } catch { }
                     }
                     if (!parsed) {
                         parsed = {
