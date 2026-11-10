@@ -444,9 +444,12 @@ app.use((req, res, next) => {
 });
 app.use(errorHandler);
 
-const isTestEnv = process.env.NODE_ENV === 'test' || 
-                  process.execArgv.includes('--test') ||
-                  (process.argv[1] && !process.argv[1].endsWith('index.js'));
+const isRunningUnderPM2 = process.env.pm_id !== undefined || process.env.PM2_HOME !== undefined;
+const isTestEnv = !isRunningUnderPM2 && (
+    process.env.NODE_ENV === 'test' || 
+    process.execArgv.includes('--test') ||
+    (process.argv[1] && !process.argv[1].endsWith('index.js'))
+);
 
 if (!isTestEnv) {
     pool.connect()
