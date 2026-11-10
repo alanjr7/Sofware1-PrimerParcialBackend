@@ -466,7 +466,18 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTE ESQUEMA:
     "proposal": {
         "changes": "Descripción concisa de cambios",
         "updatedDiagram": {
-            "elements": [...],
+            "elements": [
+                {
+                    "name": "NombreClase",
+                    "type": "class",
+                    "attributes": [
+                        { "name": "id", "type": "int", "visibility": "public" }
+                    ],
+                    "methods": [
+                        { "name": "metodo()", "returnType": "void", "visibility": "public" }
+                    ]
+                }
+            ],
             "connections": [
                 {
                     "source": "NombreClaseOrigen_o_id",
