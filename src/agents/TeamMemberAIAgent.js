@@ -504,6 +504,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTE ESQUEMA:
                 });
                 rawContent = completion.choices[0]?.message?.content || '';
             } catch (err) {
+                console.warn('⚠️ [TeamMemberAIAgent] gpt-4o-mini error:', err.message);
                 // Fallback secundario a gpt-4o si gpt-4o-mini presenta fallas
                 try {
                     const fallbackCompletion = await this.openai.chat.completions.create({
@@ -517,6 +518,7 @@ RESPONDE ÚNICAMENTE CON UN OBJETO JSON VÁLIDO CON ESTE ESQUEMA:
                     });
                     rawContent = fallbackCompletion.choices[0]?.message?.content || '';
                 } catch (fallbackErr) {
+                    console.error('❌ [TeamMemberAIAgent] Fallback gpt-4o error:', fallbackErr.message);
                     rawContent = '';
                 }
             }
